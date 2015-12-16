@@ -413,20 +413,18 @@ class Picker(QWidget):
         profs = []
         dates = []
         failure = False
-
+        
+        disp_name = None
+        run = None
+        model = None
+        observed = None
+        
         exc = ""
 
         ## if the profile is an archived file, load the file from
         ## the hard disk
         if filename is not None:
-            model = "Archive"
-            prof_collection, stn_id = self.loadArchive(filename)
-            disp_name = stn_id
-            prof_idx = range(len(dates))
-
-            run = prof_collection.getCurrentDate()
-            fhours = None
-            observed = True
+            ret = loadData(None, None, None, None, file_name=filename)
         else:
         ## otherwise, download with the data thread
             prof_idx = self.prof_idx
@@ -440,21 +438,40 @@ class Picker(QWidget):
 
             ret = loadData(self.data_sources[model], self.loc, run, prof_idx)
 
-            if isinstance(ret[0], Exception):
-                exc = ret[0]
-                failure = True
-            else:
-                prof_collection = ret[0]
-
-            fhours = [ "F%03d" % fh for idx, fh in enumerate(self.data_sources[self.model].getForecastHours()) if idx in prof_idx ]
-
+        if isinstance(ret[0], Exception):
+            exc = ret[0]
+            failure = True
+        else:
+            prof_collection = ret[0]
+        
         if not failure:
-            prof_collection.setMeta('model', model)
+            if disp_name is None:
+                disp_name = prof_collection.getMeta("loc")
+                
+            if run is None:
+                run = prof_collection.getCurrentDate()
+                
+            if not prof_collection.hasMeta('model') and model is None:
+                prof_collection.setMeta('model', 'Archive')
+            elif model is not None:
+                prof_collection.setMeta('model', model)
+            
             prof_collection.setMeta('run', run)
+            
             prof_collection.setMeta('loc', disp_name)
+            
+            if filename is None:
+                fhours = [ "F%03d" % fh for idx, fh in enumerate(self.data_sources[self.model].getForecastHours()) if idx in prof_idx ]
+            else:
+                fhours = [ "F{0:03d}".format((y.days*86400+y.seconds)/3600) for y in [x-prof_collection._dates[0] for x in prof_collection._dates]]
             prof_collection.setMeta('fhour', fhours)
-            prof_collection.setMeta('observed', observed)
-
+            
+            if not prof_collection.hasMeta('observed') and observed is not None:
+                prof_collection.setMeta('observed', observed)
+            elif not prof_collection.hasMeta('observed'):
+                prof_collection.setMeta('observed', True)
+                observed = True
+                
             if not observed:
                 # If it's not an observed profile, then generate profile objects in background.
                 prof_collection.setAsync(Picker.async)
@@ -464,7 +481,7 @@ class Picker(QWidget):
                 self.skew = SPCWindow(parent=self.parent(), cfg=self.config)
                 self.skew.closed.connect(self.skewAppClosed)
                 self.skew.show()
-
+            
             self.focusSkewApp()
             self.skew.addProfileCollection(prof_collection)
 
@@ -480,43 +497,46 @@ class Picker(QWidget):
             self.skew.setFocus()
             self.skew.raise_()
 
-    def loadArchive(self, filename):
-        """
-        Get the archive sounding based on the user's selections.
-        Also reads it using the Decoders and gets both the stationID and the profile objects
-        for that archive sounding.
-        """
-
-        for decname, deccls in getDecoders().iteritems():
-            try:
-                dec = deccls(filename)
-                break
-            except:
-                dec = None
-                continue
-
-        if dec is None:
-            raise IOError("Could not figure out the format of '%s'!" % filename)
-
-        profs = dec.getProfiles()
-        stn_id = dec.getStnId()
-
-        return profs, stn_id
-
     def hasConnection(self):
         return self.has_connection
 
 @progress(Picker.async)
-def loadData(data_source, loc, run, indexes, __text__=None, __prog__=None):
+def loadData(data_source, loc, run, indexes, __text__=None, __prog__=None, file_name=None):
     """
-    Loads the data from a remote source. Has hooks for progress bars.
+    Loads the data from a source. Has hooks for progress bars.
     """
     if __text__ is not None:
         __text__.emit("Decoding File")
+    
+    """
+    Loads data from a remote source
+    """
+    if data_source is not None:
+        url = data_source.getURL(loc, run)
+        available_decoders = [(None, data_source.getDecoder(loc, run))]
+    elif file_name is not None:
+        """
+        Load data from a local file
+        """
+        url = file_name
+        available_decoders = getDecoders().iteritems()
+    
+    """
+    Loop through source decoder or all available decoders
+    """
+    for decname, deccls in available_decoders:
+        try:
+            dec = deccls(url)
+            break
+        except:
+            dec = None
+            continue
 
-    url = data_source.getURL(loc, run)
-    decoder = data_source.getDecoder(loc, run)
-    dec = decoder(url)
+    """
+    Bail out if decoders failed
+    """
+    if dec is None:
+        raise IOError("Could not figure out the format of '%s'!" % url)
 
     if __text__ is not None:
         __text__.emit("Creating Profiles")

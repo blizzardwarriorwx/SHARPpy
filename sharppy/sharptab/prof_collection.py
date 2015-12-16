@@ -47,9 +47,21 @@ class ProfCollection(object):
         Subset the profile collection over time.
         idxs:   The time indices to include in the subsetted collection.
         """
+        
+        if idxs is None:
+            idxs = range(len(self._dates))
+        
         profiles = dict( (mem, [ prof[idx] for idx in idxs ]) for mem, prof in self._profs.iteritems() )
         dates = [ self._dates[idx] for idx in idxs ]
-        return ProfCollection(profiles, dates, highlight=self._highlight, **self._meta)
+        
+        meta = {}
+        for key in self._meta:
+            if type(self._meta[key]) == list:
+                meta[key] = [self._meta[key][idx] for idx in idxs]
+            else:
+                meta[key] = self._meta[key]
+        
+        return ProfCollection(profiles, dates, highlight=self._highlight, **meta)
 
     def _backgroundCopy(self, member, max_procs=2):
         pipe = Queue(max_procs)
