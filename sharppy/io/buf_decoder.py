@@ -50,7 +50,8 @@ class BufDecoder(Decoder):
             prof_coll.setMeta('model', __first_guess_models__[self._getBaseFile().split('_')[0].lower()])
         else:
             prof_coll.setMeta('model', '')
-
+        print(self._getBaseFile().split('_')[0])
+        print(prof_coll.getMeta('model'))
         prof_coll.setMeta('observed', False)
         prof_coll.setMeta('loc', location)
         prof_coll.setMeta('runs', dates[0].hour)

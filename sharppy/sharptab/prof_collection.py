@@ -387,3 +387,13 @@ class ProfCollection(object):
         self._mod_wind[self._prof_idx] = False
         self._mod_therm[self._prof_idx] = False
         self._interp[self._prof_idx] = False
+        
+    def serialize(self):
+        serial = {'profiles': {},
+                  'dates'   : [date.strftime('%Y-%m-%dT%H:%M:%SZ') for date in self._dates],
+                  'meta'    : self._meta}
+        
+        for key in self._profs:
+            serial['profiles'][key] = [prof.serialize() for prof in self._profs[key]]
+        
+        return serial

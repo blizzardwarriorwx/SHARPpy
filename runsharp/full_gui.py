@@ -424,7 +424,7 @@ class Picker(QWidget):
         ## if the profile is an archived file, load the file from
         ## the hard disk
         if filename is not None:
-            ret = loadData(None, None, None, None, file_name=filename)
+            prof_collection = loadData(None, None, None, None, file_name=filename)
         else:
         ## otherwise, download with the data thread
             prof_idx = self.prof_idx
@@ -436,13 +436,13 @@ class Picker(QWidget):
             if self.data_sources[model].getForecastHours() == [ 0 ]:
                 prof_idx = [ 0 ]
 
-            ret = loadData(self.data_sources[model], self.loc, run, prof_idx)
+            ret = loadDataAsync(self.data_sources[model], self.loc, run, prof_idx)
 
-        if isinstance(ret[0], Exception):
-            exc = ret[0]
-            failure = True
-        else:
-            prof_collection = ret[0]
+            if isinstance(ret[0], Exception):
+                exc = ret[0]
+                failure = True
+            else:
+                prof_collection = ret[0]
         
         if not failure:
             if disp_name is None:
@@ -501,6 +501,9 @@ class Picker(QWidget):
         return self.has_connection
 
 @progress(Picker.async)
+def loadDataAsync(data_source, loc, run, indexes, __text__=None, __prog__=None):
+    return loadData(data_source, loc, run, indexes, __text__, __prog__)
+@crasher(exit=False)
 def loadData(data_source, loc, run, indexes, __text__=None, __prog__=None, file_name=None):
     """
     Loads the data from a source. Has hooks for progress bars.
@@ -540,8 +543,10 @@ def loadData(data_source, loc, run, indexes, __text__=None, __prog__=None, file_
 
     if __text__ is not None:
         __text__.emit("Creating Profiles")
-
+    
+    print(dec.getProfiles(indexes=None))    
     profs = dec.getProfiles(indexes=indexes)
+    
     return profs
 
 class Main(QMainWindow):
