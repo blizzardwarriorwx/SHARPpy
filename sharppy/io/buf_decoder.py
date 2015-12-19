@@ -6,13 +6,21 @@ import sharppy.sharptab.prof_collection as prof_collection
 from decoder import Decoder
 
 from datetime import datetime
+from urlparse import urlparse
+from os.path import split
 
 __fmtname__ = "bufkit"
 __classname__ = "BufDecoder"
 
+__first_guess_models__ = {'gfs3': 'GFS', 'nam': 'NAM', 'namm': 'NAM', 'rap': 'RAP', 'hrrr':'HRRR', 'sref': 'SREF', \
+                          'nam4km': '4km NAM', 'nam4kmm': '4km NAM'}
+
 class BufDecoder(Decoder):
     def __init__(self, file_name):
         super(BufDecoder, self).__init__(file_name)
+
+    def _getBaseFile(self):
+        return split(urlparse(self._file_name).path)[1]
 
     def _parse(self):
         file_data = self._downloadFile()
@@ -24,6 +32,7 @@ class BufDecoder(Decoder):
         profiles = {}
         dates = None
         mean_member = None
+        location = None
 
         for n, mem_txt in enumerate(members):
             mem_name, mem_profs, mem_dates = self._parseMember(mem_txt)
@@ -32,8 +41,19 @@ class BufDecoder(Decoder):
 
             if mean_member is None:
                 mean_member = mem_name
-
+            if location is None:
+                location = mem_profs[0].location
+        
         prof_coll = prof_collection.ProfCollection(profiles, dates)
+        
+        if self._getBaseFile().split('_')[0].lower() in __first_guess_models__:
+            prof_coll.setMeta('model', __first_guess_models__[self._getBaseFile().split('_')[0].lower()])
+        else:
+            prof_coll.setMeta('model', '')
+
+        prof_coll.setMeta('observed', False)
+        prof_coll.setMeta('loc', location)
+        prof_coll.setMeta('runs', dates[0].hour)
         prof_coll.setHighlightedMember(mean_member)
         return prof_coll
 
