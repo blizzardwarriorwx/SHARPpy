@@ -8,6 +8,8 @@ from decoder import Decoder
 from datetime import datetime
 from urlparse import urlparse
 from os.path import split
+from cStringIO import StringIO
+from zipfile import ZipFile, BadZipfile
 
 __fmtname__ = "bufkit"
 __classname__ = "BufDecoder"
@@ -24,6 +26,17 @@ class BufDecoder(Decoder):
 
     def _parse(self):
         file_data = self._downloadFile()
+
+        try:
+            data_io = StringIO(file_data)
+            buz_file = ZipFile(data_io, mode='r')
+            buf_file = buz_file.open(buz_file.filelist[0].filename, mode='r')
+            file_data = buf_file.read()
+            buf_file.close()
+            buz_file.close()
+            data_io.close()
+        except (BadZipfile):
+            del data_io
 
         string = '\r\n\r\n\r\n'
         members = np.array(file_data.split(string))
