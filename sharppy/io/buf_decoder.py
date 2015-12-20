@@ -15,7 +15,7 @@ __fmtname__ = "bufkit"
 __classname__ = "BufDecoder"
 
 __first_guess_models__ = {'gfs3': 'GFS', 'nam': 'NAM', 'namm': 'NAM', 'rap': 'RAP', 'hrrr':'HRRR', 'sref': 'SREF', \
-                          'nam4km': '4km NAM', 'nam4kmm': '4km NAM'}
+                          'nam4km': '4km NAM', 'nam4kmm': '4km NAM', 'arw': 'ARW', 'nmb': 'NMB', 'hiresw': 'HiResW'}
 
 class BufDecoder(Decoder):
     def __init__(self, file_name):
